@@ -1,0 +1,54 @@
+# Public surfaces via k3s built-in Traefik + nip.io wildcard DNS (free, no domain needed)
+#   api.167-233-93-35.nip.io     -> video-origin API
+#   (grafana ingress is managed by the helm chart — see infra/cloud/values-monitoring.yaml)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: video-origin
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: api.167-233-93-35.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: video-origin
+                port:
+                  number: 80
+---
+# Synthetic viewer traffic so public dashboards always show live curves
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synthetic-traffic
+  labels:
+    app: synthetic-traffic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: synthetic-traffic
+  template:
+    metadata:
+      labels:
+        app: synthetic-traffic
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.10.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                curl -s -o /dev/null http://video-origin/api/videos
+                curl -s -o /dev/null http://video-origin/api/videos/$((RANDOM % 5 + 1))
+                curl -s -o /dev/null http://video-origin/api/video/manifest/$((RANDOM % 5 + 1))
+                if [ $((RANDOM % 10)) -eq 0 ]; then curl -s -o /dev/null "http://video-origin/api/slow?ms=300"; fi
+                sleep 1
+              done
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 50m, memory: 32Mi }

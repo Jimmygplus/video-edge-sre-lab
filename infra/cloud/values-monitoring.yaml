@@ -1,0 +1,52 @@
+# kube-prometheus-stack values tuned for a 4GB single-node host (Hetzner cx23).
+# Goals: fit in ~1.2GB for the whole monitoring stack; Grafana publicly viewable read-only.
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    resources:
+      requests: { cpu: 100m, memory: 400Mi }
+      limits:   { cpu: 500m, memory: 700Mi }
+    # pick up our ServiceMonitors without label gymnastics
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits:   { cpu: 100m, memory: 64Mi }
+
+grafana:
+  adminPassword: sre-lab
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { cpu: 300m, memory: 256Mi }
+  grafana.ini:
+    server:
+      root_url: "http://grafana.167-233-93-35.nip.io"
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+    users:
+      allow_sign_up: false
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.167-233-93-35.nip.io
+
+# trim node-exporter/kube-state-metrics footprints
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 10m, memory: 24Mi }
+    limits:   { cpu: 100m, memory: 48Mi }
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits:   { cpu: 100m, memory: 64Mi }
+
+# single-node k3s: control-plane components are embedded; don't scrape phantoms
+kubeEtcd: { enabled: false }
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
