@@ -1,0 +1,4 @@
+video-origin/build/
+video-origin/.gradle/
+*.log
+nohup.out

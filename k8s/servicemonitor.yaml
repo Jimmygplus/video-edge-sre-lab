@@ -1,0 +1,17 @@
+# Tells the Prometheus Operator to scrape video-origin's /actuator/prometheus.
+# The `release: monitoring` label is what makes this ServiceMonitor visible to
+# the kube-prometheus-stack instance (its serviceMonitorSelector matches on it).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: video-origin
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: video-origin
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s

@@ -1,0 +1,61 @@
+# Alert rules born from the two incident drills (see incidents/).
+# `release: monitoring` label routes these into the kube-prometheus-stack Prometheus.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: video-origin-alerts
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: video-origin.rules
+      rules:
+        # Incident 01: bad release → 5xx spike
+        - alert: VideoOriginHigh5xxRatio
+          expr: |
+            sum(rate(http_server_requests_seconds_count{job="video-origin",status=~"5.."}[2m]))
+              /
+            sum(rate(http_server_requests_seconds_count{job="video-origin"}[2m])) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "video-origin 5xx ratio above 5% for 2m"
+            runbook: "incidents/runbook-video-origin.md#5xx-spike"
+
+        # Incident 01 supporting signal: latency SLO burn
+        - alert: VideoOriginP95LatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_server_requests_seconds_bucket{job="video-origin"}[5m]))) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "video-origin p95 latency above 500ms for 5m"
+            runbook: "incidents/runbook-video-origin.md#latency"
+
+        # Incident 02: OOMKilled / restart loop
+        - alert: VideoOriginContainerRestarts
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="default",pod=~"video-origin.*"}[10m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "video-origin container restarted in the last 10m (check for OOMKilled)"
+            runbook: "incidents/runbook-video-origin.md#oomkilled"
+
+        # Incident 02 leading indicator: memory pressure before the kill
+        - alert: VideoOriginMemoryNearLimit
+          expr: |
+            max by (pod) (
+              container_memory_working_set_bytes{namespace="default",pod=~"video-origin.*",container="video-origin"}
+                /
+              on(pod) group_left kube_pod_container_resource_limits{namespace="default",resource="memory",container="video-origin"}
+            ) > 0.9
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "video-origin memory working set above 90% of limit"
+            runbook: "incidents/runbook-video-origin.md#oomkilled"
