@@ -8,8 +8,8 @@ echo "=== 1/5 build image ==="
 docker build -t video-origin:v1 video-origin/
 docker save video-origin:v1 | k3s ctr images import -
 
-echo "=== 2/5 app + servicemonitor + alerts + ingress + synthetic traffic ==="
-kubectl apply -f k8s/video-origin.yaml -f k8s/servicemonitor.yaml -f k8s/cloud-ingress.yaml
+echo "=== 2/5 app + ingress + synthetic traffic ==="
+kubectl apply -f k8s/video-origin.yaml -f k8s/cloud-ingress.yaml
 
 echo "=== 3/5 helm ==="
 command -v helm >/dev/null || curl -sf https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash >/dev/null
@@ -20,7 +20,8 @@ echo "=== 4/5 monitoring stack (4GB-tuned) ==="
 helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace \
   -f infra/cloud/values-monitoring.yaml --wait --timeout 12m
-kubectl apply -f k8s/alert-rules.yaml
+# CRDs (ServiceMonitor/PrometheusRule) exist only after the chart is installed
+kubectl apply -f k8s/servicemonitor.yaml -f k8s/alert-rules.yaml
 
 echo "=== 5/5 dashboard ==="
 sleep 5
