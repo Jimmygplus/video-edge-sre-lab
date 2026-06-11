@@ -7,6 +7,10 @@ testing, and **incident drills with real timelines, runbooks, and postmortems**.
 > Built to practise and demonstrate production reliability engineering end-to-end:
 > deploy → observe → alert → respond → improve.
 
+**▶️ Live (running on a Hetzner cloud host since Jun 2026):**
+- API: http://api.167-233-93-35.nip.io/api/videos
+- Grafana (read-only): http://grafana.167-233-93-35.nip.io/d/video-origin-sre
+
 ## Architecture
 
 ```mermaid
